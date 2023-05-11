@@ -8,15 +8,17 @@ import (
 )
 
 var (
-	AppDebug    bool
-	MysqlDns    string
-	RuntimePath string
-	LogSavePath string
-	StaticPath  string
-	TgBotToken  string
-	TgProxy     string
-	TgManage    int64
-	UsdtRate    float64
+	AppDebug            bool
+	MysqlDns            string
+	RuntimePath         string
+	LogSavePath         string
+	StaticPath          string
+	TgBotToken          string
+	TgProxy             string
+	TgManage            int64
+	UsdtRate            float64
+	TronNet             string
+	UsdtContractAddress string
 )
 
 func Init() {
@@ -51,6 +53,8 @@ func Init() {
 	TgBotToken = viper.GetString("tg_bot_token")
 	TgProxy = viper.GetString("tg_proxy")
 	TgManage = viper.GetInt64("tg_manage")
+	TronNet = viper.GetString("tron_net")
+	UsdtContractAddress = viper.GetString("usdt_contract_address")
 }
 
 func GetAppVersion() string {
@@ -95,4 +99,17 @@ func GetOrderExpirationTime() int {
 func GetOrderExpirationTimeDuration() time.Duration {
 	timer := GetOrderExpirationTime()
 	return time.Minute * time.Duration(timer)
+}
+
+func GetTronApiUri() string {
+	switch TronNet {
+	case "MAIN":
+		return "https://apilist.tronscanapi.com/api/transfer/trc20"
+	case "SHASTA":
+		return "https://shastapi.tronscan.org/api/transfer/trc20"
+	case "NILE":
+		return "https://nileapi.tronscan.org/api/transfer/trc20"
+	default:
+		return "https://shastapi.tronscan.org/api/transfer/trc20"
+	}
 }
