@@ -76,7 +76,7 @@ func Trc20CallBack(token string, wg *sync.WaitGroup) {
 		"start":           "0",
 		"direction":       "2",
 		"db_version":      "1",
-		"trc20Id":         "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+		"trc20Id":         config.UsdtContractAddress,
 		"address":         token,
 		"start_timestamp": stdutil.ToString(startTime),
 		"end_timestamp":   stdutil.ToString(endTime),
