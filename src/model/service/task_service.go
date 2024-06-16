@@ -16,6 +16,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/shopspring/decimal"
 	"net/http"
+	"strconv"
 	"sync"
 )
 
@@ -37,8 +38,8 @@ type OkData struct {
 type OkTransaction struct {
 	Txid                 string `json:"txId"`
 	BlockHash            string `json:"blockHash"`
-	Height               int    `json:"height"`
-	TransactionTime      int64  `json:"transactionTime"`
+	Height               string `json:"height"`
+	TransactionTime      string `json:"transactionTime"`
 	From                 string `json:"from"`
 	To                   string `json:"to"`
 	TokenContractAddress string `json:"tokenContractAddress"`
@@ -226,7 +227,11 @@ func Trc20CallBackByOklink(token string, wg *sync.WaitGroup) {
 		}
 		// 区块的确认时间必须在订单创建时间之后
 		createTime := order.CreatedAt.TimestampWithMillisecond()
-		if transfer.TransactionTime < createTime {
+		transactionTime, err := strconv.ParseInt(transfer.TransactionTime, 10, 64)
+		if err != nil {
+			return
+		}
+		if transactionTime < createTime {
 			panic("Orders cannot actually be matched")
 		}
 		// 到这一步就完全算是支付成功了
