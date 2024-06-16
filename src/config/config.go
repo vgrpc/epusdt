@@ -19,6 +19,8 @@ var (
 	UsdtRate            float64
 	TronNet             string
 	UsdtContractAddress string
+	OklinkKey           string
+	UseOklink           bool
 )
 
 func Init() {
@@ -55,10 +57,12 @@ func Init() {
 	TgManage = viper.GetInt64("tg_manage")
 	TronNet = viper.GetString("tron_net")
 	UsdtContractAddress = viper.GetString("usdt_contract_address")
+	OklinkKey = viper.GetString("oklink_key")
+	UseOklink = viper.GetBool("use_oklink")
 }
 
 func GetAppVersion() string {
-	return "0.0.4"
+	return "0.0.5"
 }
 
 func GetAppName() string {

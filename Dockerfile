@@ -8,6 +8,8 @@ ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
     GOARCH=amd64
+ENV TZ=Asia/Shanghai
+# RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 移动到工作目录：/workdir
 WORKDIR /app

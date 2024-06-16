@@ -25,6 +25,28 @@ type UsdtTrc20Resp struct {
 	Data     []Data `json:"data"`
 }
 
+type OkTransactionResp struct {
+	Code string   `json:"code"`
+	Data []OkData `json:"data"`
+}
+
+type OkData struct {
+	TransactionList []OkTransaction `json:"transactionList"`
+}
+
+type OkTransaction struct {
+	Txid                 string `json:"txId"`
+	BlockHash            string `json:"blockHash"`
+	Height               int    `json:"height"`
+	TransactionTime      int64  `json:"transactionTime"`
+	From                 string `json:"from"`
+	To                   string `json:"to"`
+	TokenContractAddress string `json:"tokenContractAddress"`
+	TokenId              string `json:"tokenId"`
+	Amount               string `json:"amount"`
+	Symbol               string `json:"symbol"`
+}
+
 type TokenInfo struct {
 	TokenID      string `json:"tokenId"`
 	TokenAbbr    string `json:"tokenAbbr"`
@@ -127,6 +149,92 @@ func Trc20CallBack(token string, wg *sync.WaitGroup) {
 			TradeId:            tradeId,
 			Amount:             amount,
 			BlockTransactionId: transfer.Hash,
+		}
+		err = OrderProcessing(req)
+		if err != nil {
+			panic(err)
+		}
+		// 回调队列
+		orderCallbackQueue, _ := handle.NewOrderCallbackQueue(order)
+		mq.MClient.Enqueue(orderCallbackQueue, asynq.MaxRetry(5))
+		// 发送机器人消息
+		msgTpl := `
+<b>📢📢有新的交易支付成功！</b>
+<pre>交易号：%s</pre>
+<pre>订单号：%s</pre>
+<pre>请求支付金额：%f cny</pre>
+<pre>实际支付金额：%f usdt</pre>
+<pre>钱包地址：%s</pre>
+<pre>订单创建时间：%s</pre>
+<pre>支付成功时间：%s</pre>
+`
+		msg := fmt.Sprintf(msgTpl, order.TradeId, order.OrderId, order.Amount, order.ActualAmount, order.Token, order.CreatedAt.ToDateTimeString(), carbon.Now().ToDateTimeString())
+		telegram.SendToBot(msg)
+	}
+}
+
+// Trc20CallBack trc20回调
+func Trc20CallBackByOklink(token string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer func() {
+		if err := recover(); err != nil {
+			log.Sugar.Error(err)
+		}
+	}()
+	client := http_client.GetHttpClient()
+
+	resp, err := client.R().SetQueryParams(map[string]string{
+		"chainShortName":       "TRON",
+		"address":              token,
+		"protocolType":         "token_20",
+		"tokenContractAddress": config.UsdtContractAddress,
+		"limit":                "50",
+	}).SetHeader("OK-ACCESS-KEY", config.OklinkKey).Get("https://www.oklink.com/api/v5/explorer/address/token-transaction-list")
+	if err != nil {
+		panic(err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		panic(err)
+	}
+	var oklinkResp OkTransactionResp
+	err = json.Cjson.Unmarshal(resp.Body(), &oklinkResp)
+	if err != nil {
+		panic(err)
+	}
+	if len(oklinkResp.Data) <= 0 {
+		return
+	}
+	for _, transfer := range oklinkResp.Data[0].TransactionList {
+		if transfer.To != token {
+			continue
+		}
+		decimalQuant, err := decimal.NewFromString(transfer.Amount)
+		if err != nil {
+			panic(err)
+		}
+		amount := decimalQuant.InexactFloat64()
+		tradeId, err := data.GetTradeIdByWalletAddressAndAmount(token, amount)
+		if err != nil {
+			panic(err)
+		}
+		if tradeId == "" {
+			continue
+		}
+		order, err := data.GetOrderInfoByTradeId(tradeId)
+		if err != nil {
+			panic(err)
+		}
+		// 区块的确认时间必须在订单创建时间之后
+		createTime := order.CreatedAt.TimestampWithMillisecond()
+		if transfer.TransactionTime < createTime {
+			panic("Orders cannot actually be matched")
+		}
+		// 到这一步就完全算是支付成功了
+		req := &request.OrderProcessingRequest{
+			Token:              token,
+			TradeId:            tradeId,
+			Amount:             amount,
+			BlockTransactionId: transfer.Txid,
 		}
 		err = OrderProcessing(req)
 		if err != nil {
