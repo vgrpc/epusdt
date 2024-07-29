@@ -27,10 +27,17 @@ func (r ListenTrc20Job) Run() {
 	var wg sync.WaitGroup
 	for _, address := range walletAddress {
 		wg.Add(1)
-		if config.UseOklink {
+		switch config.QueryChannel {
+		case "2":
 			go service.Trc20CallBackByOklink(address.Token, &wg)
-		} else {
+			break
+		case "3":
+			go service.Trc20CallBackByOklinkExplorerApiV1(address.Token, &wg)
+			break
+		case "1":
+		default:
 			go service.Trc20CallBack(address.Token, &wg)
+			break
 		}
 	}
 	wg.Wait()

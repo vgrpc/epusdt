@@ -20,7 +20,7 @@ var (
 	TronNet             string
 	UsdtContractAddress string
 	OklinkKey           string
-	UseOklink           bool
+	QueryChannel        string
 )
 
 func Init() {
@@ -58,11 +58,11 @@ func Init() {
 	TronNet = viper.GetString("tron_net")
 	UsdtContractAddress = viper.GetString("usdt_contract_address")
 	OklinkKey = viper.GetString("oklink_key")
-	UseOklink = viper.GetBool("use_oklink")
+	QueryChannel = viper.GetString("query_channel")
 }
 
 func GetAppVersion() string {
-	return "0.0.5"
+	return "0.0.6"
 }
 
 func GetAppName() string {

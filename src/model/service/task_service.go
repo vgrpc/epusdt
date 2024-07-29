@@ -11,6 +11,7 @@ import (
 	"github.com/assimon/luuu/util/http_client"
 	"github.com/assimon/luuu/util/json"
 	"github.com/assimon/luuu/util/log"
+	"github.com/assimon/luuu/util/oklink"
 	"github.com/golang-module/carbon/v2"
 	"github.com/gookit/goutil/stdutil"
 	"github.com/hibiken/asynq"
@@ -18,6 +19,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type UsdtTrc20Resp struct {
@@ -31,6 +33,13 @@ type OkTransactionResp struct {
 	Data []OkData `json:"data"`
 }
 
+type OkLinkV1Resp struct {
+	Code string     `json:"code"`
+	Data []OkV1Data `json:"data"`
+}
+type OkV1Data struct {
+	Hits []OkTransaction `json:"hits"`
+}
 type OkData struct {
 	TransactionList []OkTransaction `json:"transactionList"`
 }
@@ -197,15 +206,108 @@ func Trc20CallBackByOklink(token string, wg *sync.WaitGroup) {
 	if resp.StatusCode() != http.StatusOK {
 		panic(err)
 	}
-	var oklinkResp OkTransactionResp
-	err = json.Cjson.Unmarshal(resp.Body(), &oklinkResp)
+	var okLinkResp OkTransactionResp
+	err = json.Cjson.Unmarshal(resp.Body(), &okLinkResp)
 	if err != nil {
 		panic(err)
 	}
-	if len(oklinkResp.Data) <= 0 {
+	if len(okLinkResp.Data) <= 0 {
 		return
 	}
-	for _, transfer := range oklinkResp.Data[0].TransactionList {
+	for _, transfer := range okLinkResp.Data[0].TransactionList {
+		if transfer.To != token {
+			continue
+		}
+		decimalQuant, err := decimal.NewFromString(transfer.Amount)
+		if err != nil {
+			panic(err)
+		}
+		amount := decimalQuant.InexactFloat64()
+		tradeId, err := data.GetTradeIdByWalletAddressAndAmount(token, amount)
+		if err != nil {
+			panic(err)
+		}
+		if tradeId == "" {
+			continue
+		}
+		order, err := data.GetOrderInfoByTradeId(tradeId)
+		if err != nil {
+			panic(err)
+		}
+		// 区块的确认时间必须在订单创建时间之后
+		createTime := order.CreatedAt.TimestampWithMillisecond()
+		transactionTime, err := strconv.ParseInt(transfer.TransactionTime, 10, 64)
+		if err != nil {
+			return
+		}
+		if transactionTime < createTime {
+			panic("Orders cannot actually be matched")
+		}
+		// 到这一步就完全算是支付成功了
+		req := &request.OrderProcessingRequest{
+			Token:              token,
+			TradeId:            tradeId,
+			Amount:             amount,
+			BlockTransactionId: transfer.Txid,
+		}
+		err = OrderProcessing(req)
+		if err != nil {
+			panic(err)
+		}
+		// 回调队列
+		orderCallbackQueue, _ := handle.NewOrderCallbackQueue(order)
+		mq.MClient.Enqueue(orderCallbackQueue, asynq.MaxRetry(5))
+		// 发送机器人消息
+		msgTpl := `
+<b>📢📢有新的交易支付成功！</b>
+<pre>交易号：%s</pre>
+<pre>订单号：%s</pre>
+<pre>请求支付金额：%f cny</pre>
+<pre>实际支付金额：%f usdt</pre>
+<pre>钱包地址：%s</pre>
+<pre>订单创建时间：%s</pre>
+<pre>支付成功时间：%s</pre>
+`
+		msg := fmt.Sprintf(msgTpl, order.TradeId, order.OrderId, order.Amount, order.ActualAmount, order.Token, order.CreatedAt.ToDateTimeString(), carbon.Now().ToDateTimeString())
+		telegram.SendToBot(msg)
+	}
+}
+
+// Trc20CallBack trc20回调
+func Trc20CallBackByOklinkExplorerApiV1(token string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer func() {
+		if err := recover(); err != nil {
+			log.Sugar.Error(err)
+		}
+	}()
+	client := http_client.GetHttpClient()
+
+	resp, err := client.R().SetQueryParams(map[string]string{
+		"offset":          "0",
+		"isError":         "success",
+		"address":         token,
+		"tokenType":       "TRC20",
+		"contractAddress": config.UsdtContractAddress,
+		"limit":           "20",
+		"nonzeroValue":    "true",
+		"t":               strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10),
+	}).SetHeader("X-Apikey", oklink.GetApiKey()).SetHeader("X-Utc", "8").Get("https://www.oklink.com/api/explorer/v1/tron/transfers")
+	if err != nil {
+		panic(err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		panic(err)
+	}
+	var okLinkResp OkLinkV1Resp
+	err = json.Cjson.Unmarshal(resp.Body(), &okLinkResp)
+	if err != nil {
+		panic(err)
+	}
+	if len(okLinkResp.Data) <= 0 {
+		return
+	}
+	for _, transfer := range okLinkResp.Data[0].Hits {
 		if transfer.To != token {
 			continue
 		}
