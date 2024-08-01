@@ -34,8 +34,10 @@ type OkTransactionResp struct {
 }
 
 type OkLinkV1Resp struct {
-	Code string     `json:"code"`
-	Data []OkV1Data `json:"data"`
+	Code      int      `json:"code"`
+	Data      OkV1Data `json:"data"`
+	Msg       string   `json:"msg"`
+	DetailMsg string   `json:"detailMsg"`
 }
 type OkV1Data struct {
 	Hits []OkTransaction `json:"hits"`
@@ -304,10 +306,7 @@ func Trc20CallBackByOklinkExplorerApiV1(token string, wg *sync.WaitGroup) {
 	if err != nil {
 		panic(err)
 	}
-	if len(okLinkResp.Data) <= 0 {
-		return
-	}
-	for _, transfer := range okLinkResp.Data[0].Hits {
+	for _, transfer := range okLinkResp.Data.Hits {
 		if transfer.To != token {
 			continue
 		}
