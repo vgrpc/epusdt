@@ -40,7 +40,7 @@ type OkLinkV1Resp struct {
 	DetailMsg string   `json:"detailMsg"`
 }
 type OkV1Data struct {
-	Hits []OkTransaction `json:"hits"`
+	Hits []OkV1Transaction `json:"hits"`
 }
 type OkData struct {
 	TransactionList []OkTransaction `json:"transactionList"`
@@ -57,6 +57,19 @@ type OkTransaction struct {
 	TokenId              string `json:"tokenId"`
 	Amount               string `json:"amount"`
 	Symbol               string `json:"symbol"`
+}
+
+type OkV1Transaction struct {
+	Txid                 string  `json:"txId"`
+	BlockHash            string  `json:"blockHash"`
+	Height               string  `json:"height"`
+	TransactionTime      string  `json:"transactionTime"`
+	From                 string  `json:"from"`
+	To                   string  `json:"to"`
+	TokenContractAddress string  `json:"tokenContractAddress"`
+	TokenId              string  `json:"tokenId"`
+	Amount               float64 `json:"value"`
+	Symbol               string  `json:"symbol"`
 }
 
 type TokenInfo struct {
@@ -310,11 +323,8 @@ func Trc20CallBackByOklinkExplorerApiV1(token string, wg *sync.WaitGroup) {
 		if transfer.To != token {
 			continue
 		}
-		decimalQuant, err := decimal.NewFromString(transfer.Amount)
-		if err != nil {
-			panic(err)
-		}
-		amount := decimalQuant.InexactFloat64()
+
+		amount := transfer.Amount
 		tradeId, err := data.GetTradeIdByWalletAddressAndAmount(token, amount)
 		if err != nil {
 			panic(err)
