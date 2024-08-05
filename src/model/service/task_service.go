@@ -63,7 +63,7 @@ type OkV1Transaction struct {
 	Txid                 string  `json:"txId"`
 	BlockHash            string  `json:"blockHash"`
 	Height               string  `json:"height"`
-	TransactionTime      string  `json:"transactionTime"`
+	BlockTime            int64   `json:"blocktime"`
 	From                 string  `json:"from"`
 	To                   string  `json:"to"`
 	TokenContractAddress string  `json:"tokenContractAddress"`
@@ -338,10 +338,7 @@ func Trc20CallBackByOklinkExplorerApiV1(token string, wg *sync.WaitGroup) {
 		}
 		// 区块的确认时间必须在订单创建时间之后
 		createTime := order.CreatedAt.TimestampWithMillisecond()
-		transactionTime, err := strconv.ParseInt(transfer.TransactionTime, 10, 64)
-		if err != nil {
-			return
-		}
+		transactionTime := transfer.BlockTime
 		if transactionTime < createTime {
 			panic("Orders cannot actually be matched")
 		}
