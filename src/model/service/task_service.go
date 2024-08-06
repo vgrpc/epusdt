@@ -338,7 +338,7 @@ func Trc20CallBackByOklinkExplorerApiV1(token string, wg *sync.WaitGroup) {
 		}
 		// 区块的确认时间必须在订单创建时间之后
 		createTime := order.CreatedAt.TimestampWithMillisecond()
-		transactionTime := transfer.BlockTime
+		transactionTime := transfer.BlockTime * 1000
 		if transactionTime < createTime {
 			panic("Orders cannot actually be matched")
 		}
