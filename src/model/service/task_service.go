@@ -60,14 +60,13 @@ type OkTransaction struct {
 }
 
 type OkV1Transaction struct {
-	Txid                 string  `json:"txId"`
+	Txid                 string  `json:"txhash"`
 	BlockHash            string  `json:"blockHash"`
-	Height               string  `json:"height"`
+	Height               int64   `json:"blockHeight"`
 	BlockTime            int64   `json:"blocktime"`
 	From                 string  `json:"from"`
 	To                   string  `json:"to"`
 	TokenContractAddress string  `json:"tokenContractAddress"`
-	TokenId              string  `json:"tokenId"`
 	Amount               float64 `json:"value"`
 	Symbol               string  `json:"symbol"`
 }
