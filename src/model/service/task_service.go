@@ -298,14 +298,15 @@ func Trc20CallBackByOklinkExplorerApiV1(token string, wg *sync.WaitGroup) {
 	client := http_client.GetHttpClient()
 
 	resp, err := client.R().SetQueryParams(map[string]string{
-		"offset":          "0",
-		"isError":         "success",
-		"address":         token,
-		"tokenType":       "TRC20",
-		"contractAddress": config.UsdtContractAddress,
-		"limit":           "20",
-		"nonzeroValue":    "true",
-		"t":               strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10),
+		"offset":               "0",
+		"tokenContractAddress": config.UsdtContractAddress,
+		"isError":              "success",
+		"address":              token,
+		"tokenType":            "TRC20",
+		"contractAddress":      token,
+		"limit":                "20",
+		"nonzeroValue":         "true",
+		"t":                    strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10),
 	}).SetHeader("X-Apikey", oklink.GetApiKey()).SetHeader("X-Utc", "8").Get("https://www.oklink.com/api/explorer/v1/tron/transfers")
 	if err != nil {
 		panic(err)

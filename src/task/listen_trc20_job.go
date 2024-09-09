@@ -35,6 +35,8 @@ func (r ListenTrc20Job) Run() {
 			go service.Trc20CallBackByOklinkExplorerApiV1(address.Token, &wg)
 			break
 		case "1":
+			go service.Trc20CallBack(address.Token, &wg)
+			break
 		default:
 			go service.Trc20CallBack(address.Token, &wg)
 			break
